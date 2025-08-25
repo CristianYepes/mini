@@ -3,16 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   lex_scan.c                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: rcarpio-cyepes <rcarpio-cyepes@student.    +#+  +:+       +#+        */
+/*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/24 22:09:24 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 20:26:21 by rcarpio-cye      ###   ########.fr       */
+/*   Updated: 2025/08/25 23:10:50 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-/* prototipo del helper ALT */
+/* prototipo del helper ALT implementado en lex_helpers.c */
 int	read_operator_alt(const char *s, int i, char out[3], int *type_out);
 
 typedef struct s_buf
@@ -21,6 +21,21 @@ typedef struct s_buf
 	size_t	len;
 	size_t	cap;
 }	t_buf;
+
+/* ---- helpers locales: no dependemos de libft aquí ---- */
+static int	is_space(char c)
+{
+	if (c == ' ' || c == '\t')
+		return (1);
+	return (0);
+}
+
+static int	is_op_char(char c)
+{
+	if (c == '|' || c == '&' || c == '<' || c == '>')
+		return (1);
+	return (0);
+}
 
 /* --- buffer simple --- */
 static int	buf_grow(t_buf *b, size_t need)
@@ -106,7 +121,7 @@ static int	read_word_alt(const char *s, int i, t_buf *acc, int *err)
 {
 	while (s[i])
 	{
-		if (ft_isreserved(s[i]) || ft_isspace((int)(unsigned char)s[i]))
+		if (is_op_char(s[i]) || is_space(s[i]))
 			break ;
 		if (s[i] == '\'' || s[i] == '\"')
 		{
@@ -125,6 +140,7 @@ static int	read_word_alt(const char *s, int i, t_buf *acc, int *err)
 	return (i);
 }
 
+/* ---- API: tokenizer ---- */
 t_list	*tokenizer(char *str)
 {
 	t_list	head;
@@ -145,9 +161,9 @@ t_list	*tokenizer(char *str)
 		i = skip_spaces_alt(str, i, &start, 1);
 		if (!str[i])
 			break ;
-		ttype = 0;
+		ttype = ARG;
 		i = read_operator_alt(str, i, op, &ttype);
-		if (ttype != 0)
+		if (ttype != ARG)
 		{
 			char	*s;
 
@@ -176,3 +192,4 @@ t_list	*tokenizer(char *str)
 	}
 	return (head.next);
 }
+

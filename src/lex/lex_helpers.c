@@ -1,28 +1,19 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   lex_helpers.c                                      :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: rcarpio-cyepes <rcarpio-cyepes@student.    +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/08/24 03:50:39 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 20:26:12 by rcarpio-cye      ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "minishell.h"
 
+/* Parte obligatoria: ; NO es reservado. Para bonus, mira el comentario en op_type. */
 char	ft_isreserved(char c)
 {
-	if (c == '|' || c == '&' || c == ';' || c == '<' || c == '>');
+	if (c == '|' || c == '&' || c == '<' || c == '>')
 		return (1);
 	return (0);
 }
+
+/* ALT: devuelve nuevo índice y opcionalmente fija *start */
 int	skip_spaces_alt(char *s, int i, int *start, int set_start)
 {
 	if (!s)
 		return (i);
-	while (s[i] && ft_isspace((int)(unsigned char)s[i]))
+	while (s[i] && (s[i] == ' ' || s[i] == '\t'))
 		i++;
 	if (set_start && start)
 		*start = i;
@@ -37,9 +28,13 @@ static int	op_type(const char *op)
 		return (LOGIC);
 	if (op[0] == '<' || op[0] == '>')
 		return (FILE_REDIR);
+	/* BONUS: si decides soportar ';', añade:
+	** if (op[0] == ';' && op[1] == '\0') return (LOGIC);
+	*/
 	return (ARG);
 }
 
+/* Lee operador y devuelve NUEVO i; setea *type_out (0 si no hay op) */
 int	read_operator_alt(const char *s, int i, char out[3], int *type_out)
 {
 	int	type;
@@ -50,7 +45,7 @@ int	read_operator_alt(const char *s, int i, char out[3], int *type_out)
 	type = 0;
 	if (!s || !s[i] || !ft_isreserved(s[i]))
 	{
-		*type_out = 0;
+		*type_out = ARG;
 		return (i);
 	}
 	out[0] = s[i];
@@ -65,5 +60,3 @@ int	read_operator_alt(const char *s, int i, char out[3], int *type_out)
 	*type_out = type;
 	return (i);
 }
-
-
