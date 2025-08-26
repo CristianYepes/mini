@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   token_free.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: rcarpio-cyepes <rcarpio-cyepes@student.    +#+  +:+       +#+        */
+/*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/23 21:25:19 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 20:26:41 by rcarpio-cye      ###   ########.fr       */
+/*   Updated: 2025/08/26 01:20:26 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 

@@ -1,6 +1,17 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   lex_helpers.c                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/08/25 23:54:40 by cristian          #+#    #+#             */
+/*   Updated: 2025/08/26 17:28:38 by cristian         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "minishell.h"
 
-/* Parte obligatoria: ; NO es reservado. Para bonus, mira el comentario en op_type. */
 char	ft_isreserved(char c)
 {
 	if (c == '|' || c == '&' || c == '<' || c == '>')
@@ -8,12 +19,11 @@ char	ft_isreserved(char c)
 	return (0);
 }
 
-/* ALT: devuelve nuevo índice y opcionalmente fija *start */
 int	skip_spaces_alt(char *s, int i, int *start, int set_start)
 {
 	if (!s)
 		return (i);
-	while (s[i] && (s[i] == ' ' || s[i] == '\t'))
+	while (s[i] && ft_isspace((int)(unsigned char)s[i]))
 		i++;
 	if (set_start && start)
 		*start = i;
@@ -28,13 +38,9 @@ static int	op_type(const char *op)
 		return (LOGIC);
 	if (op[0] == '<' || op[0] == '>')
 		return (FILE_REDIR);
-	/* BONUS: si decides soportar ';', añade:
-	** if (op[0] == ';' && op[1] == '\0') return (LOGIC);
-	*/
 	return (ARG);
 }
 
-/* Lee operador y devuelve NUEVO i; setea *type_out (0 si no hay op) */
 int	read_operator_alt(const char *s, int i, char out[3], int *type_out)
 {
 	int	type;
@@ -42,21 +48,27 @@ int	read_operator_alt(const char *s, int i, char out[3], int *type_out)
 	out[0] = '\0';
 	out[1] = '\0';
 	out[2] = '\0';
-	type = 0;
 	if (!s || !s[i] || !ft_isreserved(s[i]))
-	{
-		*type_out = ARG;
-		return (i);
-	}
-	out[0] = s[i];
-	i++;
+		return (*type_out = ARG, i);
+	out[0] = s[i++];
 	if (s[i] && s[i] == out[0]
 		&& (out[0] == '>' || out[0] == '<' || out[0] == '|' || out[0] == '&'))
-	{
-		out[1] = s[i];
-		i++;
-	}
+		out[1] = s[i++];
 	type = op_type(out);
 	*type_out = type;
+	return (i);
+}
+
+int	lex_handle_op(const char *s, int i, t_list **tail)
+{
+	int	did;
+	int	nxt;
+
+	did = 0;
+	nxt = emit_operator_if_any(s, i, tail, &did);
+	if (nxt < 0)
+		return (-1);
+	if (did)
+		return (nxt);
 	return (i);
 }

@@ -6,18 +6,17 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/23 19:38:33 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 22:38:42 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/26 17:25:56 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "libft.h"
 
-int ft_isspace(int c)
+int	ft_isspace(int c)
 {
-	unsigned char uc;
+	unsigned char	uc;
 
 	uc = (unsigned char)c;
 	return (uc == ' ' || uc == '\t' || uc == '\n'
-		 || uc == '\v' || uc == '\f' || uc == '\r');
+		|| uc == '\v' || uc == '\f' || uc == '\r');
 }
-

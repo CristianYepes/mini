@@ -6,107 +6,20 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/24 22:09:24 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 23:10:50 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/26 18:04:53 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-/* prototipo del helper ALT implementado en lex_helpers.c */
-int	read_operator_alt(const char *s, int i, char out[3], int *type_out);
-
-typedef struct s_buf
-{
-	char	*data;
-	size_t	len;
-	size_t	cap;
-}	t_buf;
-
-/* ---- helpers locales: no dependemos de libft aquí ---- */
-static int	is_space(char c)
-{
-	if (c == ' ' || c == '\t')
-		return (1);
-	return (0);
-}
-
-static int	is_op_char(char c)
-{
-	if (c == '|' || c == '&' || c == '<' || c == '>')
-		return (1);
-	return (0);
-}
-
-/* --- buffer simple --- */
-static int	buf_grow(t_buf *b, size_t need)
-{
-	size_t	newcap;
-	char	*p;
-
-	newcap = b->cap;
-	if (!newcap)
-		newcap = 32;
-	while (newcap < b->len + need + 1)
-		newcap <<= 1;
-	p = ft_calloc(newcap, sizeof(char));
-	if (!p)
-		return (1);
-	if (b->data && b->len)
-		ft_memcpy(p, b->data, b->len);
-	free(b->data);
-	b->data = p;
-	b->cap = newcap;
-	return (0);
-}
-
-static int	buf_pushc(t_buf *b, char c)
-{
-	if (b->len + 2 > b->cap)
-		if (buf_grow(b, 1))
-			return (1);
-	b->data[b->len++] = c;
-	b->data[b->len] = '\0';
-	return (0);
-}
-
-static t_token	*tok_new(char *s, int type)
-{
-	t_token	*t;
-
-	t = ft_calloc(1, sizeof(*t));
-	if (!t)
-		return (NULL);
-	t->str = s;
-	t->type = type;
-	return (t);
-}
-
-static int	push_token(t_list **tail, char *s, int type)
-{
-	t_token	*tk;
-	t_list	*node;
-
-	tk = tok_new(s, type);
-	if (!tk)
-		return (free(s), 1);
-	node = ft_calloc(1, sizeof(*node));
-	if (!node)
-		return (free_cmd_tok(tk), 1);
-	node->content = tk;
-	(*tail)->next = node;
-	*tail = node;
-	return (0);
-}
-
-/* ---- ALT: devuelve nuevo i. Copia contenido entre comillas a acc ---- */
-static int	read_quoted_alt(const char *s, int i, char q, t_buf *acc, int *err)
+static int	read_quoted_alt(const char *s, int i, char q, t_scan sc)
 {
 	i++;
 	while (s[i] && s[i] != q)
 	{
-		if (buf_pushc(acc, s[i]))
+		if (buf_pushc(sc.acc, s[i]))
 		{
-			*err = 1;
+			*(sc.err) = 1;
 			return (i);
 		}
 		i++;
@@ -116,16 +29,19 @@ static int	read_quoted_alt(const char *s, int i, char q, t_buf *acc, int *err)
 	return (i);
 }
 
-/* ---- ALT: palabra ARG fuera de comillas. Devuelve nuevo i ---- */
 static int	read_word_alt(const char *s, int i, t_buf *acc, int *err)
 {
+	t_scan	sc;
+
+	sc.acc = acc;
+	sc.err = err;
 	while (s[i])
 	{
-		if (is_op_char(s[i]) || is_space(s[i]))
+		if (ft_isreserved(s[i]) || ft_isspace((int)(unsigned char)s[i]))
 			break ;
 		if (s[i] == '\'' || s[i] == '\"')
 		{
-			i = read_quoted_alt(s, i, s[i], acc, err);
+			i = read_quoted_alt(s, i, s[i], sc);
 			if (*err)
 				return (i);
 			continue ;
@@ -140,56 +56,69 @@ static int	read_word_alt(const char *s, int i, t_buf *acc, int *err)
 	return (i);
 }
 
-/* ---- API: tokenizer ---- */
+int	emit_arg_word(const char *s, int i, t_list **tail)
+{
+	t_buf	acc;
+	int		err;
+	int		start;
+
+	buf_init(&acc);
+	err = 0;
+	start = i;
+	i = read_word_alt(s, i, &acc, &err);
+	if (err)
+		return (free(acc.data), -1);
+	if (acc.len == 0)
+	{
+		free(acc.data);
+		/* si hubo algo (p. ej., "" o ''), emitir ARG vacío */
+		if (i != start)
+		{
+			if (emit_empty_arg(tail))
+				return (-1);
+		}
+		return (i);
+	}
+	if (push_token(tail, buf_steal(&acc), ARG))
+		return (-1);
+	return (i);
+}
+
+/* Un paso de lexing: salta espacios, operador o palabra.
+   Devuelve: nuevo índice, -1 error, -2 fin de cadena. */
+static int	step_lex(const char *str, int i, t_list **tail)
+{
+	int	nxt;
+
+	i = skip_spaces_alt((char *)str, i, NULL, 0);
+	if (!str[i])
+		return (-2);
+	nxt = lex_handle_op(str, i, tail);
+	if (nxt < 0)
+		return (-1);
+	if (nxt != i)
+		return (nxt);
+	return (emit_arg_word(str, i, tail));
+}
+
 t_list	*tokenizer(char *str)
 {
 	t_list	head;
 	t_list	*tail;
 	int		i;
+	int		r;
 
 	head.next = NULL;
 	tail = &head;
 	i = 0;
 	while (str && str[i])
 	{
-		int		start;
-		char	op[3];
-		int		ttype;
-		t_buf	acc;
-		int		err;
-
-		i = skip_spaces_alt(str, i, &start, 1);
-		if (!str[i])
-			break ;
-		ttype = ARG;
-		i = read_operator_alt(str, i, op, &ttype);
-		if (ttype != ARG)
-		{
-			char	*s;
-
-			s = ft_strdup(op);
-			if (!s || push_token(&tail, s, ttype))
-				return (ft_lstclear(&head.next, free_cmd_tok), NULL);
-			continue ;
-		}
-		acc.data = NULL;
-		acc.len = 0;
-		acc.cap = 0;
-		err = 0;
-		i = read_word_alt(str, i, &acc, &err);
-		if (err)
+		r = step_lex(str, i, &tail);
+		if (r == -1)
 			return (ft_lstclear(&head.next, free_cmd_tok), NULL);
-		if (acc.len > 0)
-		{
-			char	*s;
-
-			s = acc.data;
-			if (!s || push_token(&tail, s, ARG))
-				return (ft_lstclear(&head.next, free_cmd_tok), NULL);
-		}
-		else
-			free(acc.data);
+		if (r == -2)
+			break ;
+		i = r;
 	}
 	return (head.next);
 }
-

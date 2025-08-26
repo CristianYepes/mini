@@ -3,64 +3,62 @@
 /*                                                        :::      ::::::::   */
 /*   post_retokenize.c                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: rcarpio-cyepes <rcarpio-cyepes@student.    +#+  +:+       +#+        */
+/*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/25 20:26:34 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 20:26:36 by rcarpio-cye      ###   ########.fr       */
+/*   Updated: 2025/08/26 16:30:27 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-typedef struct s_buf
+static int	scan_word(const char *in, int i, t_buf *acc)
 {
-	char	*data;
-	size_t	len;
-	size_t	cap;
-}	t_buf;
+	while (in[i] && !ft_isspace((int)(unsigned char)in[i]))
+	{
+		if (in[i] == '\'' || in[i] == '\"')
+		{
+			char	q = in[i++];
 
-static int	buf_grow(t_buf *b, size_t need)
-{
-	size_t	newcap;
-	char	*p;
-
-	newcap = b->cap;
-	if (!newcap)
-		newcap = 32;
-	while (newcap < b->len + need + 1)
-		newcap <<= 1;
-	p = ft_calloc(newcap, sizeof(char));
-	if (!p)
-		return (1);
-	if (b->data && b->len)
-		ft_memcpy(p, b->data, b->len);
-	free(b->data);
-	b->data = p;
-	b->cap = newcap;
-	return (0);
+			while (in[i] && in[i] != q)
+				if (buf_pushc(acc, in[i++]))
+					return (-1);
+			if (in[i] == q)
+				i++;
+			continue ;
+		}
+		if (buf_pushc(acc, in[i++]))
+			return (-1);
+	}
+	return (i);
 }
 
-static int	buf_pushc(t_buf *b, char c)
+static int	append_piece(const char *in, int *i, char ***vec, int *pieces, int *cap)
 {
-	if (b->len + 2 > b->cap)
-		if (buf_grow(b, 1))
-			return (1);
-	b->data[b->len++] = c;
-	b->data[b->len] = '\0';
-	return (0);
+	t_buf	acc;
+	int		j;
+
+	buf_init(&acc);
+	j = scan_word(in, *i, &acc);
+	if (j < 0)
+		return (free(acc.data), -1);
+	*i = j;
+	if (acc.len == 0)
+		return (free(acc.data), 0);
+	if (*pieces == *cap && vec_grow(vec, cap, *pieces))
+		return (free(acc.data), -1);
+	(*vec)[(*pieces)++] = buf_steal(&acc);
+	return (1);
 }
 
 static int	split_outside_quotes(const char *in, char ***out_vec)
 {
-	t_buf	acc;
 	char	**vec;
 	int		i;
 	int		pieces;
 	int		cap;
+	int		st;
 
-	acc.data = NULL;
-	acc.len = 0;
-	acc.cap = 0;
 	vec = ft_calloc(9, sizeof(char *));
 	if (!vec)
 		return (-1);
@@ -69,69 +67,38 @@ static int	split_outside_quotes(const char *in, char ***out_vec)
 	cap = 8;
 	while (in && in[i])
 	{
-		while (in[i] && ft_isspace((int)(unsigned char)in[i]))
-			i++;
+		i = skip_spaces_alt((char *)in, i, NULL, 0);
 		if (!in[i])
 			break ;
-		acc.len = 0;
-		while (in[i] && !ft_isspace((int)(unsigned char)in[i]))
-		{
-			if (in[i] == '\'' || in[i] == '\"')
-			{
-				i++;
-				while (in[i] && in[i] != in[i - 1])
-				{
-					if (buf_pushc(&acc, in[i]))
-						return (free(acc.data), -1);
-					i++;
-				}
-				if (in[i])
-					i++;
-			}
-			else
-			{
-				if (buf_pushc(&acc, in[i]))
-					return (free(acc.data), -1);
-				i++;
-			}
-		}
-		if (acc.len > 0)
-		{
-			if (pieces == cap)
-			{
-				char	**nv;
-				int		k;
-
-				nv = ft_calloc((cap << 1) + 1, sizeof(char *));
-				if (!nv)
-					return (free(acc.data), -1);
-				k = 0;
-				while (k < pieces)
-				{
-					nv[k] = vec[k];
-					k++;
-				}
-				free(vec);
-				vec = nv;
-				cap <<= 1;
-			}
-			vec[pieces] = acc.data;
-			pieces++;
-			acc.data = NULL;
-		}
+		st = append_piece(in, &i, &vec, &pieces, &cap);
+		if (st < 0)
+			return (free(vec), -1);
 	}
 	*out_vec = vec;
 	return (pieces);
 }
 
+static int	attach_and_finish(t_list **pcurr, char **parts, int n, int type, t_list *after)
+{
+	int	i;
+
+	i = 1;
+	while (i < n)
+	{
+		if (push_token(pcurr, parts[i], type))
+			return (1);
+		i++;
+	}
+	free(parts);
+	(*pcurr)->next = after;
+	return (0);
+}
+
 int	retokenize(t_list *curr, int type, int start, int *lngths)
 {
-	t_list	*after;
 	t_token	*orig;
-	char	*slice;
-	char	**parts;
+	char	*slice, **parts;
 	int		n;
-	int		i;
 
 	(void)lngths;
 	if (!curr || !curr->content)
@@ -143,32 +110,12 @@ int	retokenize(t_list *curr, int type, int start, int *lngths)
 	if (!slice)
 		return (1);
 	n = split_outside_quotes(slice, &parts);
-	if (n <= 0)
-		return (free(slice), (n < 0));
-	free(orig->str);
-	orig->str = parts[0];
-	orig->type = type;
-	after = curr->next;
-	i = 1;
-	while (i < n)
-	{
-		t_token	*tk;
-		t_list	*nd;
-
-		tk = ft_calloc(1, sizeof(*tk));
-		nd = ft_calloc(1, sizeof(*nd));
-		if (!tk || !nd)
-			return (free(tk), free(nd), 0);
-		tk->str = parts[i];
-		tk->type = type;
-		nd->content = tk;
-		nd->next = NULL;
-		curr->next = nd;
-		curr = nd;
-		i++;
-	}
-	free(parts);
 	free(slice);
-	curr->next = after;
+	if (n <= 0)
+		return (n < 0);
+	if (replace_token_head(orig, parts[0], type))
+		return (0);
+	if (attach_and_finish(&curr, parts, n, type, curr->next))
+		return (0);
 	return (0);
 }

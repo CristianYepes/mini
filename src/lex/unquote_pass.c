@@ -3,51 +3,27 @@
 /*                                                        :::      ::::::::   */
 /*   unquote_pass.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: rcarpio-cyepes <rcarpio-cyepes@student.    +#+  +:+       +#+        */
+/*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/24 21:31:03 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/25 20:26:47 by rcarpio-cye      ###   ########.fr       */
+/*   Updated: 2025/08/26 17:28:23 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-typedef struct s_buf
+static int	unquote_copy(const char *in, int i, char q, t_buf *out)
 {
-	char	*data;
-	size_t	len;
-	size_t	cap;
-}	t_buf;
-
-static int	buf_grow(t_buf *b, size_t need)
-{
-	size_t	newcap;
-	char	*p;
-
-	newcap = b->cap;
-	if (!newcap)
-		newcap = 32;
-	while (newcap < b->len + need + 1)
-		newcap <<= 1;
-	p = ft_calloc(newcap, sizeof(char));
-	if (!p)
-		return (1);
-	if (b->data && b->len)
-		ft_memcpy(p, b->data, b->len);
-	free(b->data);
-	b->data = p;
-	b->cap = newcap;
-	return (0);
-}
-
-static int	buf_pushc(t_buf *b, char c)
-{
-	if (b->len + 2 > b->cap)
-		if (buf_grow(b, 1))
-			return (1);
-	b->data[b->len++] = c;
-	b->data[b->len] = '\0';
-	return (0);
+	i++;
+	while (in[i] && in[i] != q)
+	{
+		if (buf_pushc(out, in[i]))
+			return (-1);
+		i++;
+	}
+	if (in[i] == q)
+		i++;
+	return (i);
 }
 
 static char	*str_unquote_dup(const char *in)
@@ -55,23 +31,15 @@ static char	*str_unquote_dup(const char *in)
 	t_buf	out;
 	int		i;
 
-	out.data = NULL;
-	out.len = 0;
-	out.cap = 0;
+	buf_init(&out);
 	i = 0;
 	while (in && in[i])
 	{
 		if (in[i] == '\'' || in[i] == '\"')
 		{
-			i++;
-			while (in[i] && in[i] != in[i - 1])
-			{
-				if (buf_pushc(&out, in[i]))
-					return (free(out.data), NULL);
-				i++;
-			}
-			if (in[i])
-				i++;
+			i = unquote_copy(in, i, in[i], &out);
+			if (i < 0)
+				return (free(out.data), NULL);
 		}
 		else
 		{
@@ -80,16 +48,16 @@ static char	*str_unquote_dup(const char *in)
 			i++;
 		}
 	}
-	return (out.data);
+	return (buf_steal(&out));
 }
 
 int	ft_remove_quotes(t_list *tokens)
 {
-	t_token	*tk;
-	char	*newstr;
-
 	while (tokens)
 	{
+		t_token	*tk;
+		char	*newstr;
+
 		tk = (t_token *)tokens->content;
 		if (tk && tk->str)
 		{
@@ -107,7 +75,7 @@ int	ft_remove_quotes(t_list *tokens)
 
 int	state_quote_delimiter_alt(char *str, int i, char delim)
 {
-	if (!str || !str[i] || str[i] != delim)
+	if (!str || str[i] != delim)
 		return (i);
 	i++;
 	while (str[i] && str[i] != delim)
@@ -116,3 +84,4 @@ int	state_quote_delimiter_alt(char *str, int i, char delim)
 		i++;
 	return (i);
 }
+
