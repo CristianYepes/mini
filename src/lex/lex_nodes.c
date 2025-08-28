@@ -6,39 +6,40 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/26 00:10:46 by cristian          #+#    #+#             */
-/*   Updated: 2025/08/26 17:29:28 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/27 20:53:50 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-static t_token	*tok_new(char *s, int type)
-{
-	t_token	*t;
-
-	t = ft_calloc(1, sizeof(*t));
-	if (!t)
-		return (NULL);
-	t->str = s;
-	t->type = type;
-	return (t);
-}
-
 int	push_token(t_list **tail, char *s, int type)
 {
-	t_token	*tk;
 	t_list	*node;
+	t_token	*tk;
 
-	tk = tok_new(s, type);
+	tk = (t_token *)ft_calloc(1, sizeof(*tk));
 	if (!tk)
 		return (free(s), 1);
-	node = ft_calloc(1, sizeof(*node));
+	tk->str = s;
+	tk->type = type;
+	node = (t_list *)ft_calloc(1, sizeof(*node));
 	if (!node)
 		return (free_cmd_tok(tk), 1);
 	node->content = tk;
 	(*tail)->next = node;
 	*tail = node;
 	return (0);
+}
+
+void	tok_set_quoted_by(t_list *tail, char q)
+{
+	t_token	*tk;
+
+	if (!tail)
+		return ;
+	tk = (t_token *)tail->content;
+	if (tk)
+		tk->quoted_by = q;
 }
 
 int	replace_token_head(t_token *orig, char *new_str, int type)

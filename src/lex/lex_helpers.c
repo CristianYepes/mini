@@ -6,7 +6,7 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/25 23:54:40 by cristian          #+#    #+#             */
-/*   Updated: 2025/08/26 17:28:38 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/27 20:29:37 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,7 +49,10 @@ int	read_operator_alt(const char *s, int i, char out[3], int *type_out)
 	out[1] = '\0';
 	out[2] = '\0';
 	if (!s || !s[i] || !ft_isreserved(s[i]))
-		return (*type_out = ARG, i);
+	{
+		*type_out = ARG;
+		return (i);
+	}
 	out[0] = s[i++];
 	if (s[i] && s[i] == out[0]
 		&& (out[0] == '>' || out[0] == '<' || out[0] == '|' || out[0] == '&'))

@@ -6,7 +6,7 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/23 18:45:28 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/26 18:02:47 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/27 20:41:00 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,7 @@ typedef struct s_token
 {
 	char	*str;
 	int		type;
+	char	quoted_by;
 }	t_token;
 
 /* Buffer dinámico usado por el lexer */

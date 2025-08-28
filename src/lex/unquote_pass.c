@@ -6,82 +6,58 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/24 21:31:03 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/26 17:28:23 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/27 20:50:11 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-static int	unquote_copy(const char *in, int i, char q, t_buf *out)
+static int	is_wrapped(const char *s, char q)
 {
-	i++;
-	while (in[i] && in[i] != q)
-	{
-		if (buf_pushc(out, in[i]))
-			return (-1);
+	size_t	i;
+
+	if (!s || s[0] != q)
+		return (0);
+	i = 1;
+	while (s[i] && s[i] != q)
 		i++;
-	}
-	if (in[i] == q)
-		i++;
-	return (i);
+	if (!s[i] || s[i + 1] != '\0')
+		return (0);
+	return (1);
 }
 
-static char	*str_unquote_dup(const char *in)
+static void	strip_outer(char *s)
 {
-	t_buf	out;
-	int		i;
+	size_t	i;
+	size_t	j;
 
-	buf_init(&out);
-	i = 0;
-	while (in && in[i])
+	i = 1;
+	j = 0;
+	while (s[i] && s[i + 1])
 	{
-		if (in[i] == '\'' || in[i] == '\"')
-		{
-			i = unquote_copy(in, i, in[i], &out);
-			if (i < 0)
-				return (free(out.data), NULL);
-		}
-		else
-		{
-			if (buf_pushc(&out, in[i]))
-				return (free(out.data), NULL);
-			i++;
-		}
+		s[j] = s[i];
+		i++;
+		j++;
 	}
-	return (buf_steal(&out));
+	s[j] = '\0';
 }
 
 int	ft_remove_quotes(t_list *tokens)
 {
+	t_token	*tk;
+
 	while (tokens)
 	{
-		t_token	*tk;
-		char	*newstr;
-
 		tk = (t_token *)tokens->content;
 		if (tk && tk->str)
 		{
-			newstr = str_unquote_dup(tk->str);
-			if (newstr)
-			{
-				free(tk->str);
-				tk->str = newstr;
-			}
+			if (tk->quoted_by == '\'' && is_wrapped(tk->str, '\''))
+				strip_outer(tk->str);
+			else if (tk->quoted_by == '\"' && is_wrapped(tk->str, '\"'))
+				strip_outer(tk->str);
 		}
 		tokens = tokens->next;
 	}
 	return (0);
-}
-
-int	state_quote_delimiter_alt(char *str, int i, char delim)
-{
-	if (!str || str[i] != delim)
-		return (i);
-	i++;
-	while (str[i] && str[i] != delim)
-		i++;
-	if (str[i] == delim)
-		i++;
-	return (i);
 }
 

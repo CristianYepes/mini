@@ -6,24 +6,44 @@
 /*   By: cristian <cristian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/24 22:09:24 by rcarpio-cye       #+#    #+#             */
-/*   Updated: 2025/08/26 18:04:53 by cristian         ###   ########.fr       */
+/*   Updated: 2025/08/28 18:33:30 by cristian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
+/* lee bloque entre comillas; dentro de "..." acepta \" -> " literal */
 static int	read_quoted_alt(const char *s, int i, char q, t_scan sc)
 {
-	i++;
-	while (s[i] && s[i] != q)
+	int	j;
+
+	j = i + 1;
+	while (s[j] && s[j] != q)
+		j++;
+	if (!s[j])
 	{
 		if (buf_pushc(sc.acc, s[i]))
 		{
 			*(sc.err) = 1;
 			return (i);
 		}
-		i++;
+		return (i + 1);
 	}
+	i++;
+	while (s[i] && s[i] != q)
+	{
+
+		if (q == '\"' && s[i] == '\\' && s[i + 1] == '\"')
+		{
+			if (buf_pushc(sc.acc, '\"'))
+			return (*(sc.err) = 1, i);
+			i += 2;
+			continue ;
+		}
+		if (buf_pushc(sc.acc, s[i]))
+			return (*(sc.err) = 1, i);
+		i++;
+}
 	if (s[i] == q)
 		i++;
 	return (i);
@@ -71,21 +91,20 @@ int	emit_arg_word(const char *s, int i, t_list **tail)
 	if (acc.len == 0)
 	{
 		free(acc.data);
-		/* si hubo algo (p. ej., "" o ''), emitir ARG vacío */
 		if (i != start)
-		{
 			if (emit_empty_arg(tail))
 				return (-1);
-		}
 		return (i);
 	}
 	if (push_token(tail, buf_steal(&acc), ARG))
 		return (-1);
+	if ((s[start] == '\'' || s[start] == '\"')
+		&& i - start >= 2 && s[i - 1] == s[start])
+		tok_set_quoted_by(*tail, s[start]);
 	return (i);
 }
 
-/* Un paso de lexing: salta espacios, operador o palabra.
-   Devuelve: nuevo índice, -1 error, -2 fin de cadena. */
+/* un paso del bucle: salta espacios; intenta operador; si no, palabra */
 static int	step_lex(const char *str, int i, t_list **tail)
 {
 	int	nxt;
@@ -122,3 +141,5 @@ t_list	*tokenizer(char *str)
 	}
 	return (head.next);
 }
+
+
